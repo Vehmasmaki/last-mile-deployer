@@ -1,15 +1,84 @@
 @include('public/index.php')
-@php
+@setup
+	use App\Server;
+	use App\App_settings;
+	$servers = Server::with('credentials')->get();
 
-use App\Server;
-$servers = Server::get();
+	// Array of deployable servers for tasks
+	$deployable = [];
 
-dd($servers);
+	foreach($servers as $server){
 
-@endphp
+		$credentials = $server->credentials->first();
 
-@servers(['deployable' => ['user@192.168.1.1'], 'localhost' => ['127.0.0.1']])
+		// Check if the server is flagged for updates and it has credentials in the database
+		if($server->perform_updates == 1 && $credentials){
+			
+			$deployable[] =  $credentials->username . "@" .$server->ipv4;
+		}
+	}
 
-@task('deploy', ['on' => 'localhost'])
-    ls -la
+	$settings = App_settings::all();
+
+	$repository = $settings->where('option', 'repository')->pluck('value')->first();
+
+	if($repository){
+		print "repository not defined";
+		die();
+	}
+
+    $releases_dir = '/home/lmd/lmd-releases';
+    $app_dir = '/home/lmd/lmd-prod';
+    $release = date('YmdHis');
+    $new_release_dir = $releases_dir .'/'. $release;
+@endsetup
+@servers(['deployable' => $deployable, 'localhost' => ['127.0.0.1']])
+
+
+@story('deploy_laravel')
+    clone_repository
+    update_symlinks
+@endstory
+
+@task('clone_repository')
+    echo 'Cloning repository'
+    [ -d {{ $releases_dir }} ] || mkdir {{ $releases_dir }}
+    git clone --depth 1 {{ $repository }} {{ $new_release_dir }}
+    cd {{ $new_release_dir }}
+    {{-- git reset --hard {{ $commit }} --}}
+@endtask
+
+@task('run_composer')
+    echo "Starting deployment ({{ $release }})"
+    cd {{ $new_release_dir }}
+    composer install --prefer-dist --no-scripts -q -o
+@endtask
+
+@task('update_symlinks')
+    echo "Linking storage directory"
+    {{-- rm -rf {{ $new_release_dir }}/storage --}}
+    {{-- ln -nfs {{ $app_dir }}/storage {{ $new_release_dir }}/storage --}}
+
+	echo "Linking app directory"
+    ln -nfs {{ $app_dir }}/app {{ $new_release_dir }}/app
+    echo "Linking vendor directory"
+    ln -nfs {{ $app_dir }}/vendor {{ $new_release_dir }}/vendor
+    echo "Linking js directory"
+    ln -nfs {{ $app_dir }}/public/js {{ $new_release_dir }}/public/js
+    echo "Linking css directory"
+    ln -nfs {{ $app_dir }}/public/css {{ $new_release_dir }}/public/css
+    echo "Linking js vendor directory"
+    ln -nfs {{ $app_dir }}/public/vendor {{ $new_release_dir }}/public/vendor
+    echo "Linking resources directory"
+    ln -nfs {{ $app_dir }}/resources {{ $new_release_dir }}/resources
+
+    {{-- echo 'Linking .env file' --}}
+    {{-- ln -nfs {{ $app_dir }}/.env {{ $new_release_dir }}/.env --}}
+
+    {{-- echo 'Linking current release' --}}
+    {{-- ln -nfs {{ $new_release_dir }} {{ $app_dir }}/current --}}
+@endtask
+
+@task("clear_caches")
+ rm {{ $app_dir }}/storage/framework/views/*
 @endtask
