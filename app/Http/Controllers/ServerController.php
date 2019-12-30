@@ -9,6 +9,7 @@ use App\Server_credentials;
 class ServerController extends Controller
 {
 
+	// Server API handling
 	public function all()
 	{
 		return Server::with('credentials')->get();
@@ -28,7 +29,6 @@ class ServerController extends Controller
     {
     	$server = Server::findOrFail($id);
         $server->update($request->all());
-
        	return $server;
     }
 
@@ -39,6 +39,7 @@ class ServerController extends Controller
         return 204;
     }
 
+    // Server credential API handling
     public function credentialsCreate(Request $request)
     {
     	return Server_credentials::create($request->all());
@@ -48,7 +49,6 @@ class ServerController extends Controller
     {
     	$server = Server_credentials::findOrFail($id);
         $server->update($request->all());
-
        	return $server;
     }
 

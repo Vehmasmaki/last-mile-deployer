@@ -18,8 +18,8 @@
 		}
 	}
 
+	// Gets repository from the database
 	$settings = App_settings::all();
-
 	$repository = $settings->where('option', 'repository')->pluck('value')->first();
 
 	if($repository){
@@ -27,6 +27,7 @@
 		die();
 	}
 
+	// These should be moved to the database in the extended releases
     $releases_dir = '/home/lmd/lmd-releases';
     $app_dir = '/home/lmd/lmd-prod';
     $release = date('YmdHis');
@@ -40,6 +41,7 @@
     update_symlinks
 @endstory
 
+{{-- Makes a shallow clone of the repository --}}
 @task('clone_repository')
     echo 'Cloning repository'
     [ -d {{ $releases_dir }} ] || mkdir {{ $releases_dir }}
@@ -48,16 +50,15 @@
     {{-- git reset --hard {{ $commit }} --}}
 @endtask
 
+{{-- Add composer installations here and 'run_composer' to the deployment story --}}
 @task('run_composer')
     echo "Starting deployment ({{ $release }})"
     cd {{ $new_release_dir }}
     composer install --prefer-dist --no-scripts -q -o
 @endtask
 
+{{-- Creates symlinks between production directory and the new release directory --}}
 @task('update_symlinks')
-    echo "Linking storage directory"
-    {{-- rm -rf {{ $new_release_dir }}/storage --}}
-    {{-- ln -nfs {{ $app_dir }}/storage {{ $new_release_dir }}/storage --}}
 
 	echo "Linking app directory"
     ln -nfs {{ $app_dir }}/app {{ $new_release_dir }}/app
@@ -72,13 +73,10 @@
     echo "Linking resources directory"
     ln -nfs {{ $app_dir }}/resources {{ $new_release_dir }}/resources
 
-    {{-- echo 'Linking .env file' --}}
-    {{-- ln -nfs {{ $app_dir }}/.env {{ $new_release_dir }}/.env --}}
-
-    {{-- echo 'Linking current release' --}}
-    {{-- ln -nfs {{ $new_release_dir }} {{ $app_dir }}/current --}}
 @endtask
 
+
+{{-- Clears caches --}}
 @task("clear_caches")
  rm {{ $app_dir }}/storage/framework/views/*
 @endtask
