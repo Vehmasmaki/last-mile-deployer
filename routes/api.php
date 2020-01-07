@@ -26,6 +26,13 @@ Route::post('servers/credentials', 'ServerController@credentialsCreate');
 Route::put('servers/credentials/{id}', 'ServerController@credentialsUpdate');
 Route::delete('servers/credentials/{id}', 'ServerController@credentialsDelete');
 
+// App settings routes
+Route::get('settings', 'SettingsController@all');
+Route::get('settings/{id}', 'SettingsController@show');
+Route::post('settings', 'SettingsController@create');
+Route::put('settings/{id}', 'SettingsController@update');
+Route::delete('settings/{id}', 'SettingsController@delete');
+
 Route::middleware('auth:api')->get('/user', function (Request $request) {
 	return $request->user();
 });
